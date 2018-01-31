@@ -1,19 +1,15 @@
 package example;
 
-import it.tangodev.ble.BleApplication;
-import it.tangodev.ble.BleApplicationListener;
-import it.tangodev.ble.BleCharacteristic;
+import it.tangodev.ble.*;
 import it.tangodev.ble.BleCharacteristic.CharacteristicFlag;
-import it.tangodev.ble.BleCharacteristicListener;
-import it.tangodev.ble.BleService;
+import org.freedesktop.dbus.exceptions.DBusException;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.freedesktop.dbus.exceptions.DBusException;
-
 public class ExampleMain implements Runnable {
-	
+	public static final String DESCRIPTOR_UUID = "b4a20bb9-d3c6-4086-94ed-7759ec9d64ba";
+
 	protected String valueString = "Ciao ciao";
 	BleApplication app;
 	BleService service;
@@ -25,6 +21,7 @@ public class ExampleMain implements Runnable {
 	}
 	
 	public ExampleMain() throws DBusException, InterruptedException {
+
 		BleApplicationListener appListener = new BleApplicationListener() {
 			@Override
 			public void deviceDisconnected(String path) {
@@ -62,6 +59,15 @@ public class ExampleMain implements Runnable {
 				}
 			}
 		});
+
+		BleDescriptor.DescriptorFlag[] descriptorFlags = {
+				BleDescriptor.DescriptorFlag.READ, BleDescriptor.DescriptorFlag.WRITE
+		};
+
+		BleDescriptor descriptor = new BleDescriptor("/tango/s/c/d", characteristic, descriptorFlags,
+				DESCRIPTOR_UUID);
+		descriptor.setValue("fluffy".getBytes());
+		characteristic.addDescriptor(descriptor);
 		service.addCharacteristic(characteristic);
 		app.addService(service);
 		

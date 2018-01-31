@@ -1,17 +1,12 @@
 package it.tangodev.ble;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import it.tangodev.utils.BleAdapter;
 import org.bluez.GattApplication1;
 import org.bluez.GattManager1;
 import org.bluez.LEAdvertisingManager1;
-import org.dbus.ObjectManager;
 import org.dbus.InterfacesAddedSignal.InterfacesAdded;
 import org.dbus.InterfacesRomovedSignal.InterfacesRemoved;
+import org.dbus.ObjectManager;
 import org.freedesktop.DBus;
 import org.freedesktop.DBus.Properties;
 import org.freedesktop.dbus.DBusConnection;
@@ -19,6 +14,13 @@ import org.freedesktop.dbus.DBusSigHandler;
 import org.freedesktop.dbus.Path;
 import org.freedesktop.dbus.Variant;
 import org.freedesktop.dbus.exceptions.DBusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * BleApplication class is the starting point of the entire Peripheral service's structure.
@@ -27,6 +29,7 @@ import org.freedesktop.dbus.exceptions.DBusException;
  *
  */
 public class BleApplication implements GattApplication1 {
+    private static final Logger LOG = LoggerFactory.getLogger(BleApplication.class);
 
 	public static final String DBUS_BUSNAME = "org.freedesktop.DBus";
 	public static final String BLUEZ_DBUS_BUSNAME = "org.bluez";
@@ -61,6 +64,7 @@ public class BleApplication implements GattApplication1 {
 	 * @param path
 	 */
 	public BleApplication(String path, BleApplicationListener listener) {
+	    LOG.debug("BleApplication " + path);
 		this.path = path;
 		this.listener = listener;
 	}
@@ -72,6 +76,7 @@ public class BleApplication implements GattApplication1 {
 	 * @throws InterruptedException
 	 */
 	public void start() throws DBusException, InterruptedException {
+	    LOG.debug("start");
 		DBusConnection dbusConnection = DBusConnection.getConnection(DBusConnection.SYSTEM);
 
 		bleAdapter = findAdapterPath();
@@ -117,6 +122,7 @@ public class BleApplication implements GattApplication1 {
 	 * @throws InterruptedException
 	 */
 	public void stop() throws DBusException, InterruptedException {
+	    LOG.debug("stop");
 		if (bleAdapter == null) {
 			return;
 		}
@@ -245,7 +251,9 @@ public class BleApplication implements GattApplication1 {
 	 * @throws DBusException
 	 */
 	private void export(DBusConnection dbusConnection) throws DBusException {
-		for (BleService service : servicesList) {
+        LOG.debug("export dbusConnection: " + dbusConnection.getUniqueName());
+        for (BleService service : servicesList) {
+		    LOG.debug( " service: " + service.getPath().getPath());
 			service.export(dbusConnection);
 		}
 		dbusConnection.exportObject(path, this);
@@ -258,14 +266,19 @@ public class BleApplication implements GattApplication1 {
 
 	@Override
 	public Map<Path, Map<String, Map<String, Variant>>> GetManagedObjects() {
-		System.out.println("Application -> GetManagedObjects");
+		LOG.debug("Application -> GetManagedObjects");
 
 		Map<Path, Map<String, Map<String, Variant>>> response = new HashMap<Path, Map<String, Map<String, Variant>>>();
 		for (BleService service : servicesList) {
+		    LOG.debug("service: " + service.getPath() + " " + service.getUuid());
 			response.put(service.getPath(), service.getProperties());
 			for (BleCharacteristic characteristic : service.getCharacteristics()) {
+			    LOG.debug("   \\ characteristic: " + characteristic.getPath().getPath() + " " + characteristic.uuid);
 				response.put(characteristic.getPath(), characteristic.getProperties());
-				// TODO foreach Description in Characteristic
+				for (BleDescriptor bleDescriptor : characteristic.getDescriptors().values()) {
+				    LOG.debug("      \\ descriptor " + bleDescriptor.getPath() + " " + bleDescriptor.getUuid());
+					response.put(new Path(bleDescriptor.getPath()), bleDescriptor.getProperties());
+				}
 			}
 		}
 		
