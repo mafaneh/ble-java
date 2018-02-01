@@ -10,7 +10,7 @@
 apply plugin: 'java-library'
 apply plugin: 'maven'
 
-project.version = '0.2'
+project.version = '0.3'
 project.group = 'it.tangodev'
 
 repositories {
