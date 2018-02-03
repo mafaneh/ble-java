@@ -55,45 +55,57 @@ public class BleDescriptor implements GattDescriptor1, Properties{
         this.uuid = uuid;
     }
 
+    /**
+     * This method is called when the central request the Characteristic's value.
+     */
     @Override
     public byte[] ReadValue(Map<String, Variant> option) {
-        // todo handle offset and device
-        LOG.debug("ReadValue " + option);
-        return value;
-    }
-
-    @Override
-    public void WriteValue(byte[] value, Map<String, Variant> option) {
-        // todo handle device
-        LOG.debug("WriteValue " + value.length + " option: " + option);
+        LOG.debug("ReadValue option[" + option + "]");
         int offset = 0;
         if(option.containsKey("offset")) {
             Variant<UInt16> voffset = option.get("offset");
             offset = (voffset.getValue() != null) ? voffset.getValue().intValue() : offset;
         }
-        if (offset < 0) {
-            LOG.error("offset is invalid: " + offset);
-            return;
+
+        String devicePath = null;
+        devicePath = stringVariantToString(option, devicePath);
+
+        byte[] valueBytes = onReadValue(devicePath);
+        byte[] slice = Arrays.copyOfRange(valueBytes, offset, valueBytes.length);
+        return slice;
+    }
+
+    /**
+     * This method is called when the central want to write the Characteristic's value.
+     */
+    @Override
+    public void WriteValue(byte[] value, Map<String, Variant> option) {
+        LOG.debug("WriteValue Write option[" + option + "]");
+        int offset = 0;
+        if(option.containsKey("offset")) {
+            Variant<UInt16> voffset = option.get("offset");
+            offset = (voffset.getValue() != null) ? voffset.getValue().intValue() : offset;
         }
-        if (this.value == null) {
-            if (offset > 0) {
-                LOG.warn("offset opiton initial WriteValue");
-                this.value = new byte[offset + value.length];
-                System.arraycopy(value, 0, this.value, offset, this.value.length);
-            }
-            this.value = value;
+
+        String devicePath = null;
+        onWriteValue(stringVariantToString(option, devicePath), offset, value);
+    }
+
+    protected String stringVariantToString(Map<String, Variant> option, String devicePath) {
+        if (option.containsKey("device")) {
+            Variant<Path> pathVariant = null;
+            pathVariant = option.get("pathVariant");
+            if (pathVariant != null) devicePath = pathVariant.getValue().getPath();
         }
-        else {
-            if (offset == 0) this.value = value;
-            else {
-                if (this.value.length < offset + value.length) {
-                    LOG.error("Wriet Out of Bounds Error: " + offset);
-                }
-                else {
-                    System.arraycopy(value, 0, this.value, offset, value.length);
-                }
-            }
-        }
+        return devicePath;
+    }
+
+    protected byte[] onReadValue(String devicePath) {
+        return value;
+    }
+
+    protected void onWriteValue(String devicePath, int offset, byte[] value) {
+        this.value = value;
     }
 
     @Override

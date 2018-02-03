@@ -147,7 +147,7 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 		try {
 			DBusConnection dbusConnection = DBusConnection.getConnection(DBusConnection.SYSTEM);
 			
-			Variant<byte[]> signalValueVariant = new Variant<byte[]>(getValue(devicePath));
+			Variant<byte[]> signalValueVariant = new Variant<byte[]>(onReadValue(devicePath));
 			Map<String, Variant> signalValue = new HashMap<String, Variant>();
 			signalValue.put(VALUE_PROPERTY_KEY, signalValueVariant);
 			
@@ -178,7 +178,7 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 		String devicePath = null;
 		devicePath = stringVariantToString(option, devicePath);
 
-		byte[] valueBytes = getValue(devicePath);
+		byte[] valueBytes = onReadValue(devicePath);
 		byte[] slice = Arrays.copyOfRange(valueBytes, offset, valueBytes.length);
 		return slice;
 	}
@@ -196,7 +196,7 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 		}
 
 		String devicePath = null;
-		setValue(stringVariantToString(option, devicePath), offset, value);
+		onWriteValue(stringVariantToString(option, devicePath), offset, value);
 	}
 
 	protected String stringVariantToString(Map<String, Variant> option, String devicePath) {
@@ -208,11 +208,11 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 		return devicePath;
 	}
 
-	protected byte[] getValue(String devicePath) {
+	protected byte[] onReadValue(String devicePath) {
 		return listener.getValue(devicePath);
 	}
 
-	protected void setValue(String devicePath, int offset, byte[] value) {
+	protected void onWriteValue(String devicePath, int offset, byte[] value) {
 		listener.setValue(devicePath, offset, value);
 	}
 
