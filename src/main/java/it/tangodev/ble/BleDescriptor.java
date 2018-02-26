@@ -26,7 +26,7 @@ public class BleDescriptor implements GattDescriptor1, Properties{
     private final String path;
     private final BleCharacteristic characteristic;
     private final String uuid;
-    private byte[] value;
+    protected byte[] value;
     private DescriptorFlag[] flags;
 
     public enum DescriptorFlag {

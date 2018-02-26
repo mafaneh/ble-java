@@ -63,7 +63,10 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 			return this.flag;
 		}
 	}
-	
+
+	public BleCharacteristic() {
+	}
+
 	/**
 	 * 
 	 * @param service: The service that contains the Characteristic
@@ -87,7 +90,7 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 		setFlags(flags);
 		this.listener = listener;
 	}
-	
+
 	public void setFlags(List<CharacteristicFlag> flags) {
 		for (CharacteristicFlag characteristicFlag : flags) {
 			this.flags.add(characteristicFlag.toString());
@@ -169,14 +172,10 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 	@Override
 	public byte[] ReadValue(Map<String, Variant> option) {
 		LOG.debug("ReadValue option[" + option + "]");
-		int offset = 0;
-		if(option.containsKey("offset")) {
-			Variant<UInt16> voffset = option.get("offset");
-			offset = (voffset.getValue() != null) ? voffset.getValue().intValue() : offset;
-		}
+		int offset = getIntOption(option, "offset");
 
 		String devicePath = null;
-		devicePath = stringVariantToString(option, devicePath);
+		devicePath = getPathOption(option, "device");
 
 		byte[] valueBytes = onReadValue(devicePath);
 		byte[] slice = Arrays.copyOfRange(valueBytes, offset, valueBytes.length);
@@ -188,24 +187,40 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 	 */
 	@Override
 	public void WriteValue(byte[] value, Map<String, Variant> option) {
-		LOG.debug("WriteValue Write option[" + option + "]");
-		int offset = 0;
-		if(option.containsKey("offset")) {
-			Variant<UInt16> voffset = option.get("offset");
-			offset = (voffset.getValue() != null) ? voffset.getValue().intValue() : offset;
-		}
+		LOG.debug("WriteValue " + value.length + "  option[" + option + "]");
+		int offset = getIntOption(option, "offset");
 
-		String devicePath = null;
-		onWriteValue(stringVariantToString(option, devicePath), offset, value);
+		String devicePath = getPathOption(option, "device");
+		LOG.debug("WriteValue devicePath = " + devicePath);
+		onWriteValue(devicePath, offset, value);
 	}
 
-	protected String stringVariantToString(Map<String, Variant> option, String devicePath) {
-		if (option.containsKey("device")) {
-			Variant<Path> pathVariant = null;
-			pathVariant = option.get("pathVariant");
-			if (pathVariant != null) devicePath = pathVariant.getValue().getPath();
+	private int getIntOption(Map<String, Variant> option, String key) {
+		int value = 0;
+		if(option.containsKey(key)) {
+			Variant<UInt16> vvalue = option.get(key);
+			value = (vvalue.getValue() != null) ? vvalue.getValue().intValue() : value;
 		}
-		return devicePath;
+		return value;
+	}
+
+	private String getStringOption(Map<String, Variant> option, String key) {
+		String value = null;
+		if(option.containsKey(key)) {
+			Variant<String> vvalue = option.get(key);
+			value = (vvalue.getValue() != null) ? vvalue.getValue().toString() : value;
+		}
+		return value;
+	}
+
+	protected String getPathOption(Map<String, Variant> option, String key) {
+		String path = null;
+		if (option.containsKey(key)) {
+			Variant<Path> pathVariant = null;
+			pathVariant = option.get(key);
+			if (pathVariant != null) path = pathVariant.getValue().getPath();
+		}
+		return path;
 	}
 
 	protected byte[] onReadValue(String devicePath) {
@@ -264,5 +279,12 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 		}
 		throw new RuntimeException("Interfaccia sbagliata [interface_name=" + interfaceName + "]");
 	}
-	
+
+	public BleService getService() {
+		return service;
+	}
+
+	public void setService(BleService service) {
+		this.service = service;
+	}
 }

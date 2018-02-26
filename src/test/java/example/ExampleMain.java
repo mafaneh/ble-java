@@ -7,14 +7,14 @@ import org.freedesktop.dbus.exceptions.DBusException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ExampleMain implements Runnable {
+public class ExampleMain {
 	public static final String DESCRIPTOR_UUID = "b4a20bb9-d3c6-4086-94ed-7759ec9d64ba";
 
 	protected String valueString = "Ciao ciao";
 	BleApplication app;
 	BleService service;
 	BleCharacteristic characteristic;
-	
+
 	public void notifyBle(String value) {
 		this.valueString = value;
 		characteristic.sendNotification(null);
@@ -68,33 +68,33 @@ public class ExampleMain implements Runnable {
 				DESCRIPTOR_UUID);
 		descriptor.setValue("fluffy".getBytes());
 		characteristic.addDescriptor(descriptor);
+
+//		cccd = new ClientCharacteristicConfigurationDescriptor("/tango/s/c/cccd", characteristic);
+//		characteristic.addDescriptor(cccd);
+
 		service.addCharacteristic(characteristic);
 		app.addService(service);
 		
 		ExampleCharacteristic exampleCharacteristic = new ExampleCharacteristic(service);
 		service.addCharacteristic(exampleCharacteristic);
 		app.start();
-		System.out.println("Lisenting on adapter " + app.getBleAdapter().getAddress() + " path: " + app.getBleAdapter().getPath());
+		System.out.println("Listening on adapter " + app.getBleAdapter().getAddress() + " path: " + app.getBleAdapter().getPath());
 	}
 
-	@Override
-	public void run() {
-		try {
-			this.wait();
-		} catch (Exception e) {
-			e.printStackTrace();
+	private void simulateActivity(ExampleMain example) throws InterruptedException {
+		Thread.sleep(15000);
+		int i = 0;
+		while (true) {
+			example.notifyBle("woooooo " + i++);
+			Thread.sleep(15000);
 		}
 	}
-	
+
 	public static void main(String[] args) throws DBusException, InterruptedException {
 		ExampleMain example = new ExampleMain();
-		System.out.println("");
-//		Thread t = new Thread(example);
-//		t.start();
-//		Thread.sleep(15000);
-//		example.notifyBle("woooooo");
-//		Thread.sleep(15000);
-//		t.notify();
+		System.out.println("Started");
+		example.simulateActivity(example);
+		return;
 	}
-	
+
 }
