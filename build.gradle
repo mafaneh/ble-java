@@ -40,3 +40,8 @@ task (runExample, dependsOn: 'classes', type: JavaExec) {
     systemProperty "java.library.path", "/usr/lib/jni"
     classpath = sourceSets.test.runtimeClasspath 
 }
+
+task (configFastAdvertise, dependsOn: 'classes', type: JavaExec) {
+    main = 'example.SetFastAdvertise'
+    classpath = sourceSets.test.runtimeClasspath
+}
