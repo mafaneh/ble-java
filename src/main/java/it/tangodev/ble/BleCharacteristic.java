@@ -98,11 +98,12 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 	}
 	
 	protected void export(DBusConnection dbusConnection) throws DBusException {
-        LOG.debug("export");
+		LOG.debug(String.format("export: %s", this.getPath().toString()));
 		dbusConnection.exportObject(this.getPath().toString(), this);
 	}
 
 	protected void unexport(DBusConnection dBusConnection) throws DBusException {
+		LOG.debug(String.format("uexport: %s", this.getPath().toString()));
 		dBusConnection.unExportObject(this.getPath().toString());
 	}
 	

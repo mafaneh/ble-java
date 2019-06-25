@@ -165,6 +165,11 @@ public class BleDescriptor implements GattDescriptor1, Properties {
         dBusConnection.exportObject(this.path, this);
     }
 
+    public void unexport(DBusConnection dBusConnection) throws DBusException {
+        LOG.debug("unexport " + this.path);
+        dBusConnection.unExportObject(this.path);
+    }
+
     public String getPath() {
         return path;
     }

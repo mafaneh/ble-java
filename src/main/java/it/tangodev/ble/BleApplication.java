@@ -160,8 +160,6 @@ public class BleApplication implements GattApplication1 {
 			throw new RuntimeException("No BLE adapter found");
 		}
 
-		this.export();
-
 		Properties adapterProperties = (Properties) dbusConnection.getRemoteObject(BLUEZ_DBUS_BUSNAME, bleAdapter.getPath(), Properties.class);
 		adapterProperties.Set(BLUEZ_ADAPTER_INTERFACE, "Powered", new Variant<Boolean>(true));
 		if(adapterAlias != null) {
