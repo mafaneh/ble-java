@@ -15,3 +15,5 @@
 /classes
 *.iml
 /.idea
+.idea/
+*.iml

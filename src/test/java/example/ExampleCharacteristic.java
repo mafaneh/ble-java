@@ -1,13 +1,12 @@
 package example;
 
 import it.tangodev.ble.BleCharacteristic;
-import it.tangodev.ble.BleService;
 import it.tangodev.ble.BleCharacteristicListener;
+import it.tangodev.ble.BleService;
+import org.bluez.GattCharacteristic1;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import org.bluez.GattCharacteristic1;
 
 public class ExampleCharacteristic extends BleCharacteristic implements GattCharacteristic1 {
 	
@@ -26,7 +25,7 @@ public class ExampleCharacteristic extends BleCharacteristic implements GattChar
 		
 		this.listener = new BleCharacteristicListener() {
 			@Override
-			public void setValue(byte[] value) {
+            public void setValue(String devicePath, int offset, byte[] value) {
 				try {
 					exampleValue = new String(value, "UTF8");
 				} catch(Exception e) {
@@ -35,7 +34,7 @@ public class ExampleCharacteristic extends BleCharacteristic implements GattChar
 			}
 			
 			@Override
-			public byte[] getValue() {
+            public byte[] getValue(String devicePath) {
 				try {
 					return exampleValue.getBytes("UTF8");
 				} catch(Exception e) {

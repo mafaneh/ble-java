@@ -1,16 +1,18 @@
 package it.tangodev.ble;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.bluez.GattService1;
 import org.freedesktop.DBus.Properties;
 import org.freedesktop.dbus.DBusConnection;
 import org.freedesktop.dbus.Path;
 import org.freedesktop.dbus.Variant;
 import org.freedesktop.dbus.exceptions.DBusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * BleService class rapresent the service.
@@ -18,7 +20,8 @@ import org.freedesktop.dbus.exceptions.DBusException;
  *
  */
 public class BleService implements GattService1, Properties {
-	
+    private static final Logger LOG = LoggerFactory.getLogger(BleService.class);
+
 	private static final String GATT_SERVICE_INTERFACE = "org.bluez.GattService1";
 	private static final String SERVICE_UUID_PROPERTY_KEY = "UUID";
 	private static final String SERVICE_PRIMARY_PROPERTY_KEY = "Primary";
@@ -42,9 +45,10 @@ public class BleService implements GattService1, Properties {
 	}
 	
 	public void addCharacteristic(BleCharacteristic characteristic) {
+        LOG.debug("addCharacteristic " + characteristic.getPath().getPath());
 		this.characteristics.add(characteristic);
 	}
-	
+
 	public void removeCharacteristic(BleCharacteristic characteristic) {
 		this.characteristics.remove(characteristic);
 	}
@@ -54,8 +58,13 @@ public class BleService implements GattService1, Properties {
 	}
 	
 	protected void export(DBusConnection dbusConnection) throws DBusException {
+        LOG.debug("export");
 		for (BleCharacteristic characteristic : characteristics) {
 			characteristic.export(dbusConnection);
+            for (BleDescriptor descriptor : characteristic.getDescriptors().values()) {
+                descriptor.export(dbusConnection);
+            }
+
 		}
 		dbusConnection.exportObject(this.getPath().toString(), this);
 	}

@@ -1,13 +1,6 @@
 package it.tangodev.ble;
 
 import it.tangodev.utils.Utils;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.bluez.GattCharacteristic1;
 import org.dbus.PropertiesChangedSignal.PropertiesChanged;
 import org.freedesktop.DBus.Properties;
@@ -16,6 +9,12 @@ import org.freedesktop.dbus.Path;
 import org.freedesktop.dbus.UInt16;
 import org.freedesktop.dbus.Variant;
 import org.freedesktop.dbus.exceptions.DBusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.*;
+
+import static it.tangodev.ble.GattPropertyKeys.*;
 
 /**
  * BleCharacteristic represent a single peripheral's value that can be read, write or notified.
@@ -24,21 +23,18 @@ import org.freedesktop.dbus.exceptions.DBusException;
  */
 //@SuppressWarnings("rawtypes")
 public class BleCharacteristic implements GattCharacteristic1, Properties {
+    private static final Logger LOG = LoggerFactory.getLogger(BleCharacteristic.class);
 
 	private static final String GATT_CHARACTERISTIC_INTERFACE = "org.bluez.GattCharacteristic1";
-	private static final String CHARACTERISTIC_SERVICE_PROPERTY_KEY = "Service";
-	private static final String CHARACTERISTIC_UUID_PROPERTY_KEY = "UUID";
-	private static final String CHARACTERISTIC_FLAGS_PROPERTY_KEY = "Flags";
-	private static final String CHARACTERISTIC_DESCRIPTORS_PROPERTY_KEY = "Descriptors";
-	public static final String CHARACTERISTIC_VALUE_PROPERTY_KEY = "Value";
-	
+
 	private BleService service = null;
 	protected String uuid = null;
 	private List<String> flags = new ArrayList<String>();;
 	protected String path = null;
 	private boolean isNotifying = false;
 	protected BleCharacteristicListener listener;
-	
+    private Map<String, BleDescriptor> descriptors = new HashMap<>();
+
 	/**
 	 * A flag indicate the operation allowed on a single characteristic.
 	 * @author Tongo
@@ -67,7 +63,10 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 			return this.flag;
 		}
 	}
-	
+
+    public BleCharacteristic() {
+    }
+
 	/**
 	 * 
 	 * @param service: The service that contains the Characteristic
@@ -91,7 +90,7 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 		setFlags(flags);
 		this.listener = listener;
 	}
-	
+
 	public void setFlags(List<CharacteristicFlag> flags) {
 		for (CharacteristicFlag characteristicFlag : flags) {
 			this.flags.add(characteristicFlag.toString());
@@ -99,6 +98,7 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 	}
 	
 	protected void export(DBusConnection dbusConnection) throws DBusException {
+        LOG.debug("export");
 		dbusConnection.exportObject(this.getPath().toString(), this);
 	}
 
@@ -115,39 +115,48 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 	}
 	
 	public Map<String, Map<String, Variant>> getProperties() {
-		System.out.println("Characteristic -> getCharacteristicProperties");
-		
+        LOG.debug("gatProperties");
+
 		Map<String, Variant> characteristicMap = new HashMap<String, Variant>();
 		
 		Variant<Path> servicePathProperty = new Variant<Path>(service.getPath());
-		characteristicMap.put(CHARACTERISTIC_SERVICE_PROPERTY_KEY, servicePathProperty);
+        characteristicMap.put(SERVICE_PROPERTY_KEY, servicePathProperty);
 		
 		Variant<String> uuidProperty = new Variant<String>(this.uuid);
-		characteristicMap.put(CHARACTERISTIC_UUID_PROPERTY_KEY, uuidProperty);
+        characteristicMap.put(UUID_PROPERTY_KEY, uuidProperty);
 		
 		Variant<String[]> flagsProperty = new Variant<String[]>(Utils.getStringArrayFromList(this.flags));
-		characteristicMap.put(CHARACTERISTIC_FLAGS_PROPERTY_KEY, flagsProperty);
-		
-		// TODO manage Descriptors
-		Variant<Path[]> descriptorsPatProperty = new Variant<Path[]>(new Path[0]);
-		characteristicMap.put(CHARACTERISTIC_DESCRIPTORS_PROPERTY_KEY, descriptorsPatProperty);
+        characteristicMap.put(FLAGS_PROPERTY_KEY, flagsProperty);
+
+        Variant<Path[]> descriptorsPathProperty = new Variant<Path[]>(getDescriptorPaths());
+        characteristicMap.put(DESCRIPTORS_PROPERTY_KEY, descriptorsPathProperty);
 		
 		Map<String, Map<String, Variant>> externalMap = new HashMap<String, Map<String, Variant>>();
 		externalMap.put(GATT_CHARACTERISTIC_INTERFACE, characteristicMap);
 		
 		return externalMap;
 	}
-	
+
+    public Path[] getDescriptorPaths() {
+        Path[] descriptorPaths = new Path[descriptors.size()];
+        int i = 0;
+        for (String pathString : descriptors.keySet()) {
+            descriptorPaths[i] = new Path(pathString);
+            i++;
+        }
+        return descriptorPaths;
+    }
+
 	/**
 	 * Call this method to send a notification to a central.
 	 */
-	public void sendNotification() {
+    public void sendNotification(String devicePath) {
 		try {
 			DBusConnection dbusConnection = DBusConnection.getConnection(DBusConnection.SYSTEM);
-			
-			Variant<byte[]> signalValueVariant = new Variant<byte[]>(listener.getValue());
+
+            Variant<byte[]> signalValueVariant = new Variant<byte[]>(onReadValue(devicePath));
 			Map<String, Variant> signalValue = new HashMap<String, Variant>();
-			signalValue.put(BleCharacteristic.CHARACTERISTIC_VALUE_PROPERTY_KEY, signalValueVariant);
+            signalValue.put(VALUE_PROPERTY_KEY, signalValueVariant);
 			
 			PropertiesChanged signal = new PropertiesChanged(this.getPath().toString(), GATT_CHARACTERISTIC_INTERFACE, signalValue, new ArrayList<String>());
 			dbusConnection.sendSignal(signal);
@@ -167,14 +176,13 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 	 */
 	@Override
 	public byte[] ReadValue(Map<String, Variant> option) {
-		System.out.println("Characteristic Read option[" + option + "]");
-		int offset = 0;
-		if(option.get("offset") != null) {
-			Variant<UInt16> voffset = option.get("offset");
-			offset = (voffset.getValue() != null) ? voffset.getValue().intValue() : offset;
-		}
-		
-		byte[] valueBytes = listener.getValue();
+        LOG.debug("ReadValue option[" + option + "]");
+        int offset = getIntOption(option, "offset");
+
+        String devicePath = null;
+        devicePath = getPathOption(option, "device");
+
+        byte[] valueBytes = onReadValue(devicePath);
 		byte[] slice = Arrays.copyOfRange(valueBytes, offset, valueBytes.length);
 		return slice;
 	}
@@ -184,12 +192,61 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 	 */
 	@Override
 	public void WriteValue(byte[] value, Map<String, Variant> option) {
-		System.out.println("Characteristic Write option[" + option + "]");
-		listener.setValue(value);
+        LOG.debug("WriteValue " + value.length + "  option[" + option + "]");
+        int offset = getIntOption(option, "offset");
+
+        String devicePath = getPathOption(option, "device");
+        LOG.debug("WriteValue devicePath = " + devicePath);
+        onWriteValue(devicePath, offset, value);
+    }
+
+    private int getIntOption(Map<String, Variant> option, String key) {
+        int value = 0;
+        if (option.containsKey(key)) {
+            Variant<UInt16> vvalue = option.get(key);
+            value = (vvalue.getValue() != null) ? vvalue.getValue().intValue() : value;
+        }
+        return value;
+    }
+
+    private String getStringOption(Map<String, Variant> option, String key) {
+        String value = null;
+        if (option.containsKey(key)) {
+            Variant<String> vvalue = option.get(key);
+            value = (vvalue.getValue() != null) ? vvalue.getValue().toString() : value;
+        }
+        return value;
+    }
+
+    protected String getPathOption(Map<String, Variant> option, String key) {
+        String path = null;
+        if (option.containsKey(key)) {
+            Variant<Path> pathVariant = null;
+            pathVariant = option.get(key);
+            if (pathVariant != null) path = pathVariant.getValue().getPath();
+        }
+        return path;
+    }
+
+    protected byte[] onReadValue(String devicePath) {
+        return listener.getValue(devicePath);
+    }
+
+    protected void onWriteValue(String devicePath, int offset, byte[] value) {
+        listener.setValue(devicePath, offset, value);
+    }
+
+    public void addDescriptor(BleDescriptor descriptor) {
+        descriptors.put(descriptor.getPath(), descriptor);
+    }
+
+    public Map<String, BleDescriptor> getDescriptors() {
+        return descriptors;
 	}
 
 	@Override
 	public void StartNotify() {
+        LOG.debug("StartNotify");
 		if(isNotifying) {
 			System.out.println("Characteristic already notifying");
 			return;
@@ -199,6 +256,7 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 
 	@Override
 	public void StopNotify() {
+        LOG.debug("StopNotify");
 		if(!isNotifying) {
 			System.out.println("Characteristic already not notifying");
 			return;
@@ -220,10 +278,18 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 	
 	@Override
 	public Map<String, Variant> GetAll(String interfaceName) {
+        LOG.debug("GetAll " + interfaceName);
 		if(GATT_CHARACTERISTIC_INTERFACE.equals(interfaceName)) {
 			return this.getProperties().get(GATT_CHARACTERISTIC_INTERFACE);
 		}
 		throw new RuntimeException("Interfaccia sbagliata [interface_name=" + interfaceName + "]");
 	}
-	
+
+    public BleService getService() {
+        return service;
+    }
+
+    public void setService(BleService service) {
+        this.service = service;
+    }
 }
