@@ -116,7 +116,7 @@ public class BleCharacteristic implements GattCharacteristic1, Properties {
 	}
 	
 	public Map<String, Map<String, Variant>> getProperties() {
-        LOG.debug("gatProperties");
+        LOG.debug("Characteristic-> Properties");
 
 		Map<String, Variant> characteristicMap = new HashMap<String, Variant>();
 		

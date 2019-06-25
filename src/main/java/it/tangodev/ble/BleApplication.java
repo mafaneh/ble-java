@@ -368,8 +368,7 @@ public class BleApplication implements GattApplication1 {
 				}
 			}
 		}
-
-		System.out.println(response);
+        LOG.debug(String.format("Application: %s", response));
 		return response;
 	}
 
